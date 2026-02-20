@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Projection Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=JetBrains+Mono:wght@300;400;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080b0f;
+    --surface: #0d1117;
+    --surface2: #131920;
+    --border: rgba(180, 150, 80, 0.2);
+    --border-bright: rgba(180, 150, 80, 0.5);
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-dim: rgba(201, 168, 76, 0.15);
+    --green: #4caf82;
+    --green-dim: rgba(76, 175, 130, 0.12);
+    --red: #e05c5c;
+    --red-dim: rgba(224, 92, 92, 0.12);
+    --text: #d4c9b0;
+    --text-dim: #6b6258;
+    --text-mid: #9a8e7e;
+    --white: #f0ead8;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .brand {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.5px;
+  }
+
+  .brand span {
+    color: var(--gold);
+  }
+
+  .date-display {
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .date-display .date-val {
+    display: block;
+    font-size: 13px;
+    color: var(--text-mid);
+    margin-top: 2px;
+  }
+
+  /* Trading day counter */
+  .trading-day-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 24px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .td-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .td-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .td-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--gold-light);
+  }
+
+  .td-divider {
+    width: 1px;
+    height: 36px;
+    background: var(--border);
+  }
+
+  .progress-wrap {
+    flex: 1;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .progress-track {
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%);
+    border-radius: 2px;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Input section */
+  .input-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s 0.15s ease both;
+  }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 20px;
+  }
+
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 640px) {
+    .input-grid { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .trading-day-bar { flex-wrap: wrap; gap: 16px; }
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .input-wrap {
+    position: relative;
+  }
+
+  .input-prefix {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: var(--gold);
+    pointer-events: none;
+  }
+
+  .input-suffix {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: var(--gold);
+    pointer-events: none;
+  }
+
+  input[type="number"], input[type="text"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 12px 12px 12px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--white);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  input[type="number"]:focus, input[type="text"]:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px var(--gold-dim);
+  }
+
+  input.has-suffix { padding-right: 28px; }
+
+  /* Negative value styling */
+  input.negative { color: var(--red); }
+
+  /* Metrics grid */
+  .metrics-section {
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .metrics-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .metrics-grid.two-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    .metrics-grid, .metrics-grid.two-col { grid-template-columns: 1fr 1fr; }
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+    transition: background 0.3s;
+  }
+
+  .metric-card.positive::before {
+    background: linear-gradient(90deg, transparent, rgba(76,175,130,0.4), transparent);
+  }
+
+  .metric-card.negative::before {
+    background: linear-gradient(90deg, transparent, rgba(224,92,92,0.4), transparent);
+  }
+
+  .metric-card.highlight {
+    background: linear-gradient(135deg, var(--surface) 0%, rgba(201,168,76,0.05) 100%);
+    border-color: var(--border-bright);
+  }
+
+  .metric-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .metric-value {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--gold-light);
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .metric-value.positive { color: var(--green); }
+  .metric-value.negative { color: var(--red); }
+  .metric-value.neutral { color: var(--white); }
+  .metric-value.large { font-size: 30px; }
+
+  .metric-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .placeholder {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 14px;
+  }
+
+  .disclaimer {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 24px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div>
+      <div class="brand">Trading <span>Projection</span></div>
+      <div style="font-size:11px; color:var(--text-dim); margin-top:4px; letter-spacing:1px;">Annual Performance Dashboard</div>
+    </div>
+    <div class="date-display">
+      As of
+      <span class="date-val" id="today-display"></span>
+    </div>
+  </header>
+
+  <!-- Trading Day Progress Bar -->
+  <div class="trading-day-bar">
+    <div class="td-stat">
+      <span class="td-label">Days Elapsed</span>
+      <span class="td-value" id="days-elapsed">—</span>
+    </div>
+    <div class="td-divider"></div>
+    <div class="td-stat">
+      <span class="td-label">Days Remaining</span>
+      <span class="td-value" id="days-remaining">—</span>
+    </div>
+    <div class="td-divider"></div>
+    <div class="td-stat">
+      <span class="td-label">Total / Year</span>
+      <span class="td-value" id="total-days">—</span>
+    </div>
+    <div class="td-divider"></div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Year Progress</span>
+        <span id="progress-pct">—</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inputs -->
+  <div class="input-section">
+    <div class="section-title">Portfolio Inputs</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>Principal Balance</label>
+        <div class="input-wrap">
+          <span class="input-prefix">$</span>
+          <input type="number" id="principal" placeholder="100000" min="0" step="1000">
+        </div>
+      </div>
+      <div class="field">
+        <label>YTD Earnings / (Loss)</label>
+        <div class="input-wrap">
+          <span class="input-prefix">$</span>
+          <input type="number" id="ytd-earnings" placeholder="12500" step="100">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Metrics -->
+  <div class="metrics-section">
+    <div class="metrics-title">Performance Metrics</div>
+    <div class="metrics-grid">
+      <div class="metric-card highlight">
+        <div class="metric-label">Avg Daily Earnings</div>
+        <div class="metric-value neutral large" id="avg-daily">—</div>
+        <div class="metric-sub">Per trading day, YTD</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">YTD Return</div>
+        <div class="metric-value" id="ytd-return">—</div>
+        <div class="metric-sub">On principal balance</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Projected Annual Return</div>
+        <div class="metric-value" id="proj-annual-pct">—</div>
+        <div class="metric-sub">Annualized at current pace</div>
+      </div>
+    </div>
+    <div class="metrics-grid two-col">
+      <div class="metric-card">
+        <div class="metric-label">Projected Annual Earnings</div>
+        <div class="metric-value" id="proj-annual-earn">—</div>
+        <div class="metric-sub">Extrapolated to full year</div>
+      </div>
+      <div class="metric-card highlight">
+        <div class="metric-label">Projected EOY Balance</div>
+        <div class="metric-value neutral large" id="proj-eoy">—</div>
+        <div class="metric-sub">Principal + projected earnings</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="disclaimer">
+    This dashboard is for informational purposes only and does not constitute financial advice. 
+    Projections are linear extrapolations of current performance and do not guarantee future results. 
+    Trading day counts use NYSE calendar approximations.
+  </p>
+
+  <footer>
+    <span>TRADING PROJECTION DASHBOARD</span>
+    <span id="footer-year"></span>
+  </footer>
+
+</div>
+
+<script>
+// ─── NYSE Trading Day Calculator ──────────────────────────────────────────────
+// US Market Holidays by year (NYSE observed dates)
+const HOLIDAYS = {
+  2024: ['2024-01-01','2024-01-15','2024-02-19','2024-03-29','2024-05-27','2024-06-19','2024-07-04','2024-09-02','2024-11-28','2024-12-25'],
+  2025: ['2025-01-01','2025-01-20','2025-02-17','2025-04-18','2025-05-26','2025-06-19','2025-07-04','2025-09-01','2025-11-27','2025-12-25'],
+  2026: ['2026-01-01','2026-01-19','2026-02-16','2026-04-03','2026-05-25','2026-06-19','2026-07-03','2026-09-07','2026-11-26','2026-12-25'],
+  2027: ['2027-01-01','2027-01-18','2027-02-15','2027-03-26','2027-05-31','2027-06-18','2027-07-05','2027-09-06','2027-11-25','2027-12-24'],
+};
+
+function getHolidaySet(year) {
+  const list = HOLIDAYS[year] || [];
+  return new Set(list);
+}
+
+function isWeekday(d) {
+  const day = d.getDay();
+  return day !== 0 && day !== 6;
+}
+
+function toDateStr(d) {
+  return d.toISOString().split('T')[0];
+}
+
+// Count trading days from startDate (inclusive) to endDate (exclusive)
+function tradingDaysBetween(startDate, endDate) {
+  const holidays = getHolidaySet(startDate.getFullYear());
+  // Also grab next year's holidays if endDate is in next year
+  if (endDate.getFullYear() !== startDate.getFullYear()) {
+    const h2 = getHolidaySet(endDate.getFullYear());
+    h2.forEach(h => holidays.add(h));
+  }
+  let count = 0;
+  const cur = new Date(startDate);
+  while (cur < endDate) {
+    if (isWeekday(cur) && !holidays.has(toDateStr(cur))) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+// ─── Date Setup ────────────────────────────────────────────────────────────
+const today = new Date();
+today.setHours(0,0,0,0);
+
+const year = today.getFullYear();
+const jan1 = new Date(year, 0, 1);
+const dec31 = new Date(year, 11, 31);
+const nextJan1 = new Date(year + 1, 0, 1);
+
+// If today is after market close we count today; let's include today in elapsed
+// (the app is intended to be used at close of trading day, so today counts)
+const todayPlusOne = new Date(today);
+todayPlusOne.setDate(todayPlusOne.getDate() + 1);
+
+const daysElapsed = tradingDaysBetween(jan1, todayPlusOne);
+const daysTotal = tradingDaysBetween(jan1, nextJan1);
+const daysRemaining = daysTotal - daysElapsed;
+const progressPct = (daysElapsed / daysTotal * 100).toFixed(1);
+
+// ─── Render Static Info ─────────────────────────────────────────────────────
+const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+document.getElementById('today-display').textContent =
+  `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+document.getElementById('days-elapsed').textContent = daysElapsed;
+document.getElementById('days-remaining').textContent = daysRemaining;
+document.getElementById('total-days').textContent = daysTotal;
+document.getElementById('progress-pct').textContent = progressPct + '%';
+document.getElementById('footer-year').textContent = year + ' FISCAL YEAR';
+
+setTimeout(() => {
+  document.getElementById('progress-fill').style.width = progressPct + '%';
+}, 300);
+
+// ─── Formatters ─────────────────────────────────────────────────────────────
+const fmtDollar = (v, digits=0) => {
+  const abs = Math.abs(v);
+  const str = abs.toLocaleString('en-US', {minimumFractionDigits: digits, maximumFractionDigits: digits});
+  return (v < 0 ? '($' : '$') + str + (v < 0 ? ')' : '');
+};
+
+const fmtPct = (v, digits=2) => {
+  return (v >= 0 ? '+' : '') + v.toFixed(digits) + '%';
+};
+
+function setMetric(id, value, fmt, colorize=true) {
+  const el = document.getElementById(id);
+  if (value === null || value === undefined || isNaN(value)) {
+    el.textContent = '—';
+    el.className = 'metric-value neutral' + (el.className.includes('large') ? ' large' : '');
+    return;
+  }
+  el.textContent = fmt(value);
+  if (colorize) {
+    const classes = el.className.replace(/positive|negative|neutral/g, '').trim();
+    el.className = classes + (value >= 0 ? ' positive' : ' negative');
+  }
+}
+
+// ─── Main Calculate ──────────────────────────────────────────────────────────
+function calculate() {
+  const principal = parseFloat(document.getElementById('principal').value);
+  const ytdEarnings = parseFloat(document.getElementById('ytd-earnings').value);
+
+  // Color ytd field
+  const ytdInput = document.getElementById('ytd-earnings');
+  if (!isNaN(ytdEarnings)) {
+    ytdInput.classList.toggle('negative', ytdEarnings < 0);
+  }
+
+  if (isNaN(principal) || isNaN(ytdEarnings) || daysElapsed === 0) {
+    ['avg-daily','ytd-return','proj-annual-pct','proj-annual-earn','proj-eoy'].forEach(id => {
+      const el = document.getElementById(id);
+      el.textContent = '—';
+    });
+    return;
+  }
+
+  const avgDaily = ytdEarnings / daysElapsed;
+  const projAnnualEarn = avgDaily * daysTotal;
+  const ytdReturn = principal > 0 ? (ytdEarnings / principal) * 100 : 0;
+  const projAnnualPct = principal > 0 ? (projAnnualEarn / principal) * 100 : 0;
+  const projEoy = principal + projAnnualEarn;
+
+  setMetric('avg-daily', avgDaily, v => fmtDollar(v, 2), true);
+  setMetric('ytd-return', ytdReturn, fmtPct, true);
+  setMetric('proj-annual-pct', projAnnualPct, fmtPct, true);
+  setMetric('proj-annual-earn', projAnnualEarn, fmtDollar, true);
+  setMetric('proj-eoy', projEoy, v => fmtDollar(v, 0), false);
+
+  // Card border colors
+  document.querySelectorAll('.metric-card').forEach(c => {
+    c.classList.remove('positive','negative');
+  });
+}
+
+// ─── Event Listeners ─────────────────────────────────────────────────────────
+['principal','ytd-earnings'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calculate);
+  document.getElementById(id).addEventListener('change', calculate);
+});
+
+// Initial render
+calculate();
+</script>
+</body>
+</html>
