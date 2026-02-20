@@ -621,6 +621,20 @@ function calculate() {
   });
 }
 
+// ─── Persistence: remember principal balance ──────────────────────────────────
+const principalInput = document.getElementById('principal');
+
+// Restore saved value on load
+const savedPrincipal = localStorage.getItem('tdp_principal');
+if (savedPrincipal !== null) {
+  principalInput.value = savedPrincipal;
+}
+
+// Save on every change
+principalInput.addEventListener('input', () => {
+  localStorage.setItem('tdp_principal', principalInput.value);
+});
+
 // ─── Event Listeners ─────────────────────────────────────────────────────────
 ['principal','ytd-earnings'].forEach(id => {
   document.getElementById(id).addEventListener('input', calculate);
